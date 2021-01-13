@@ -18,9 +18,8 @@ namespace TravelAgency.Controllers
             _logger = logger;
         }
 
-        public IActionResult Index()
-        {
-            return View();
+        public IActionResult Index() {
+            return RedirectToAction("Index", "Vocations");
         }
 
         public IActionResult Privacy()
