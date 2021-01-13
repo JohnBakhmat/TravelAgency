@@ -82,7 +82,9 @@ namespace TravelAgency.Controllers
             {
                 return NotFound();
             }
+            ViewData["HotelId"] = new SelectList(_context.Hotels, "HotelId", "Name");
             return View(tour);
+            
         }
 
         // POST: Tours/Edit/5
@@ -90,7 +92,7 @@ namespace TravelAgency.Controllers
         // more details, see http://go.microsoft.com/fwlink/?LinkId=317598.
         [HttpPost]
         [ValidateAntiForgeryToken]
-        public async Task<IActionResult> Edit(int id, [Bind("TourId,Country,OneDayCost,TransportCost,VisaCost,VisaGoal,EndDate")] Tour tour)
+        public async Task<IActionResult> Edit(int id, [Bind("TourId,Country,HotelId,OneDayCost,TransportCost,VisaCost,VisaGoal,EndDate")] Tour tour)
         {
             if (id != tour.TourId)
             {
@@ -117,6 +119,7 @@ namespace TravelAgency.Controllers
                 }
                 return RedirectToAction(nameof(Index));
             }
+            ViewData["HotelId"] = new SelectList(_context.Hotels, "HotelId", "Name");
             return View(tour);
         }
 
