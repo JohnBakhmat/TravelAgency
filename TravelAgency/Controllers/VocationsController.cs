@@ -3,9 +3,11 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.Rendering;
 using Microsoft.EntityFrameworkCore;
+
 using TravelAgency.Data;
 using TravelAgency.Models;
 
@@ -25,15 +27,11 @@ namespace TravelAgency.Controllers {
                 var sS = searchString.Split(' ');
                 foreach (var parameter in sS) {
                     applicationDbContext = applicationDbContext.Where(v =>
-                        v.DaysCount.ToString().Contains(parameter) ||
-                        v.Customer.LastName.Contains(parameter) ||
-                        v.Customer.FirstName.Contains(parameter) ||
-                        v.Customer.FatherName.Contains(parameter) ||
-                        v.Customer.LastName.Contains(parameter) ||
-                        v.Operator.LastName.Contains(parameter) ||
+                        v.DaysCount.ToString().Contains(parameter) || v.Customer.LastName.Contains(parameter) ||
+                        v.Customer.FirstName.Contains(parameter) || v.Customer.FatherName.Contains(parameter) ||
+                        v.Customer.LastName.Contains(parameter) || v.Operator.LastName.Contains(parameter) ||
                         v.BeginDateTime.ToString("dd-MMMM-yyyy").Contains(parameter) ||
-                        v.Tour.Country.Contains(parameter)
-                    ).ToList();
+                        v.Tour.Country.Contains(parameter)).ToList();
                 }
             }
 
@@ -73,11 +71,8 @@ namespace TravelAgency.Controllers {
                 return NotFound();
             }
 
-            var vocation = await _context.Vocations
-                .Include(v => v.Customer)
-                .Include(v => v.Operator)
-                .Include(v => v.Tour)
-                .FirstOrDefaultAsync(m => m.VocationId == id);
+            var vocation = await _context.Vocations.Include(v => v.Customer).Include(v => v.Operator)
+                .Include(v => v.Tour).FirstOrDefaultAsync(m => m.VocationId == id);
             if (vocation == null) {
                 return NotFound();
             }
@@ -177,11 +172,8 @@ namespace TravelAgency.Controllers {
                 return NotFound();
             }
 
-            var vocation = await _context.Vocations
-                .Include(v => v.Customer)
-                .Include(v => v.Operator)
-                .Include(v => v.Tour)
-                .FirstOrDefaultAsync(m => m.OperatorId == id);
+            var vocation = await _context.Vocations.Include(v => v.Customer).Include(v => v.Operator)
+                .Include(v => v.Tour).FirstOrDefaultAsync(m => m.OperatorId == id);
             if (vocation == null) {
                 return NotFound();
             }
@@ -205,15 +197,20 @@ namespace TravelAgency.Controllers {
 
         public async Task<FileContentResult> Statistics() {
             //TODO: OrderBy
-            var applicationDbContext = await _context.Vocations.Include(v => v.Customer).Include(v => v.Operator)
-                .Include(v => v.Tour).ToListAsync();
-            var s = "ID,Customer,Begin Date,DaysCount,Tour,Operator";
-            foreach (var vocation in applicationDbContext) {
-                s +=
-                    $"\n{vocation.VocationId},{vocation.Customer.LastName},{vocation.BeginDateTime},{vocation.DaysCount},{vocation.Tour.Country},{vocation.Operator.LastName}";
-            }
-
-            return File(Encoding.UTF8.GetBytes(s), "text/csv", "Vocations.csv");
+            var applicationDbContext = await _context.Vocations.Include(v => v.Customer)
+                .Include(v => v.Operator)
+                .Include(v => v.Tour)
+                .ToListAsync();
+            var s = applicationDbContext.Aggregate("ID,Customer,Begin Date,DaysCount,Tour,Operator",
+                (current,
+                        vocation) =>
+                    current +
+                    $"\n{vocation.VocationId},{vocation.Customer.LastName}," +
+                    $"{vocation.BeginDateTime},{vocation.DaysCount}," +
+                    $"{vocation.Tour.Country},{vocation.Operator.LastName}");
+            return File(Encoding.UTF8.GetBytes(s),
+                "text/csv",
+                "Vocations.csv");
         }
 
         public async Task<FileContentResult> TourRating() {
@@ -222,21 +219,70 @@ namespace TravelAgency.Controllers {
             var content = from item in applicationDbContext
                 group item by new {item.Tour.Country, item.Tour.TourId, item.Tour.VisaGoal}
                 into grp
-                select new {
-                    ID = grp.Key.TourId,
-                    Tour = grp.Key.Country,
-                    Goal = grp.Key.VisaGoal,
-                    Rating = grp.Count()
-                };
+                select new {ID = grp.Key.TourId, Tour = grp.Key.Country, Goal = grp.Key.VisaGoal, Rating = grp.Count()};
             var s = "ID,Tour,Goal,Rating";
             foreach (var pair in content) {
                 s += $"\n{pair.ID},{pair.Tour},{pair.Goal},{pair.Rating}";
             }
+
             return File(Encoding.UTF8.GetBytes(s), "text/csv", "TourFashion.csv");
         }
-        public async Task<FileContentResult> PriseList() => File(Encoding.UTF8.GetBytes((await _context.Tours.Include(s=>s.Hotel).ToListAsync()).Aggregate("ID, Страна, Отель, Последняя дата, Цена трансцера, Цель визы, Цена визы, Цена за день, Общая стоимость дня", (current, item) => current + $"\n{item.TourId},{item.Country},{item.Hotel.Name},{item.EndDate},{item.TransportCost},{item.VisaGoal},{item.VisaCost},{item.OneDayCost},{item.TransportCost + item.VisaCost + item.OneDayCost}")), "text/csv", $"TourList {DateTime.Now:yyyy MMMM dd}.csv");
-        public async Task<FileContentResult> CountryRating() => File(Encoding.UTF8.GetBytes((await _context.Vocations.GroupBy(item => new {item.Tour.Country}).Select(grp => new {Country = grp.Key, Rating = grp.Count()}).ToListAsync()).Aggregate("Страна, Рейтинг", (current, item) => current + $"\n{item.Country}, {item.Rating}")), "text/csv", $"Country_Rating {DateTime.Now}.csv");
-        public async Task<FileContentResult> OperatorRating() => File(Encoding.UTF8.GetBytes((await _context.Vocations.Include(v => v.Customer).Include(v => v.Operator).GroupBy(item => new {item.Operator.LastName}).Select(grp => new {Operator = grp.Key, Rating = grp.Count()}).ToListAsync()).Aggregate("Оператор, Рейтинг", (current, item) => current + $"\n{item.Operator.LastName}, {item.Rating}")), "text/csv", $"Operator_Rating {DateTime.Now}.csv");
-        public async Task<FileContentResult> CustomerRating() => File(Encoding.UTF8.GetBytes((await _context.Vocations.Include(v => v.Customer).Include(v => v.Operator).GroupBy(item => new {item.Customer.LastName}).Select(grp => new {Customer = grp.Key, Rating = grp.Count()}).ToListAsync()).Aggregate("Клиент, Рейтинг", (current, item) => current + $"\n{item.Customer.LastName}, {item.Rating}")), "text/csv", $"Customer_Rating {DateTime.Now}.csv");
+
+        public async Task<FileContentResult> PriseList() => File(
+            Encoding.UTF8.GetBytes((await _context.Tours.Include(s => s.Hotel).ToListAsync()).Aggregate(
+                "ID, Страна, Отель, Последняя дата, Цена трансцера, Цель визы, Цена визы, Цена за день, Общая стоимость дня",
+                (current, item) =>
+                    current +
+                    $"\n{item.TourId},{item.Country},{item.Hotel.Name},{item.EndDate},{item.TransportCost},{item.VisaGoal},{item.VisaCost},{item.OneDayCost},{item.TransportCost + item.VisaCost + item.OneDayCost}")),
+            "text/csv", $"TourList {DateTime.Now:yyyy MMMM dd}.csv");
+
+        public async Task<FileContentResult> CountryRating() => File(
+            Encoding.UTF8.GetBytes(
+                (await _context.Vocations.GroupBy(item => new {item.Tour.Country})
+                    .Select(grp => new {Country = grp.Key, Rating = grp.Count()}).OrderByDescending(c => c.Rating)
+                    .ToListAsync()).Aggregate("Страна, Рейтинг",
+                    (current, item) => current + $"\n{item.Country.Country}, {item.Rating}")), "text/csv",
+            $"Country_Rating {DateTime.Now}.csv");
+
+        public async Task<FileContentResult> OperatorRating() => File(
+            Encoding.UTF8.GetBytes(
+                (await _context.Vocations.Include(v => v.Customer).Include(v => v.Operator)
+                    .GroupBy(item => new {item.Operator.LastName})
+                    .Select(grp => new {Operator = grp.Key, Rating = grp.Count()}).ToListAsync())
+                .Aggregate("Оператор, Рейтинг",
+                    (current, item) => current + $"\n{item.Operator.LastName}, {item.Rating}")), "text/csv",
+            $"Operator_Rating {DateTime.Now}.csv");
+
+        public async Task<FileContentResult> CustomerRating() => File(
+            Encoding.UTF8.GetBytes(
+                (await _context.Vocations.Include(v => v.Customer).Include(v => v.Operator)
+                    .GroupBy(item => new {item.Customer.LastName})
+                    .Select(grp => new {Customer = grp.Key, Rating = grp.Count()}).OrderByDescending(i => i.Rating)
+                    .ToListAsync()).Aggregate("Клиент, Рейтинг",
+                    (current, item) => current + $"\n{item.Customer.LastName}, {item.Rating}")), "text/csv",
+            $"Customer_Rating {DateTime.Now}.csv");
+
+        public async Task<FileContentResult> GoalStats() {
+            var content = from v in _context.Vocations
+                join t in _context.Tours on v.TourId equals t.TourId into gj
+                from grp in gj
+                select new {
+                    Goal = grp.VisaGoal.ToString(),
+                    TourCount = 1,
+                    MoneySpent = grp.TransportCost + grp.VisaCost + v.DaysCount * grp.OneDayCost,
+                    TimeSpent = v.DaysCount
+                };
+            var grouped = content.AsEnumerable().GroupBy(item => new {item.Goal}).Select(grp =>
+                new {
+                    Goal = grp.Key,
+                    TourCount = grp.Sum(i => i.TourCount),
+                    MoneySpent = grp.Sum(i => i.MoneySpent),
+                    TimeSpent = grp.Sum(i => i.TimeSpent)
+                }).ToList();
+            var buffer = grouped.Aggregate("Цель,Всего туров,Проведено дней,Потрачено денег",
+                (current, item) =>
+                    current + $"\n{item.Goal.Goal},{item.TourCount},{item.TimeSpent},{item.MoneySpent}$");
+            return File(Encoding.UTF8.GetBytes(buffer), "text/csv", "GoalStats.csv");
+        }
     }
 }

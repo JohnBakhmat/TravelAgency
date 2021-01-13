@@ -201,7 +201,7 @@ namespace TravelAgency.Controllers {
         }
 
         // TODO: 1) створювати перехресний запит «Кто сколько где потратил», який повинен містити Прізвище клієнта, Країну та кількість грошей, витрачених тим чи іншим клієнтом у відповідній подорожі(країну). Вся інформація повинна бути організована у вигляді перехресного запиту;
-        public FileContentResult Query1() {
+        public FileContentResult DaysSpent() {
             var content = GetContent().ToList();
             var buffer = content.Select(i => i.Country)
                 .Distinct()
@@ -225,7 +225,7 @@ namespace TravelAgency.Controllers {
         }
 
         // TODO: 2) створювати перехресний запит «Кол-во дней в странах», який повинен містити Прізвище клієнта, Країну та кількість днів, проведених тим чи іншим клієнтом у відповідній країні. Вся інформація повинна бути організована у вигляді перехресного запиту.
-        public FileContentResult Query2() {
+        public FileContentResult MoneySpent() {
             var content = GetContent().ToList();
             var buffer = content.Select(i => i.Country)
                 .Distinct()

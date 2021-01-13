@@ -1,6 +1,6 @@
 using System;
 using System.ComponentModel.DataAnnotations;
-using TravelAgency.Models.Enums;
+using TravelAgency.Models;
 
 namespace TravelAgency.Models {
     public class Tour {
